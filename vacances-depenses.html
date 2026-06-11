@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a6b5a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>💸 Vacances Budget</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #f0f7f4;
+    --surface: #ffffff;
+    --primary: #1a6b5a;
+    --primary-light: #e8f5f1;
+    --accent: #f4a259;
+    --accent-light: #fef4e8;
+    --danger: #e05c5c;
+    --text: #1a2e28;
+    --text-muted: #6b8c82;
+    --border: #d4e8e2;
+    --shadow: 0 2px 16px rgba(26,107,90,0.10);
+    --radius: 18px;
+    --radius-sm: 10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); font-family: 'DM Sans', sans-serif; color: var(--text); overscroll-behavior: none; }
+
+  body { display: flex; flex-direction: column; max-width: 480px; margin: 0 auto; min-height: 100dvh; }
+
+  /* Header */
+  header {
+    background: var(--primary);
+    color: white;
+    padding: 20px 20px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(26,107,90,0.2);
+  }
+  .header-left h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.3px; }
+  .header-left p { font-size: 0.75rem; opacity: 0.75; margin-top: 2px; }
+  .total-badge {
+    background: rgba(255,255,255,0.2);
+    border-radius: 12px;
+    padding: 8px 14px;
+    text-align: right;
+    backdrop-filter: blur(8px);
+  }
+  .total-badge .amount { font-size: 1.3rem; font-weight: 700; font-family: 'DM Mono', monospace; }
+  .total-badge .label { font-size: 0.65rem; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 73px;
+    z-index: 99;
+  }
+  .tab {
+    flex: 1;
+    padding: 12px 8px;
+    text-align: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2.5px solid transparent;
+    transition: all 0.2s;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+  }
+  .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+  /* Main content */
+  main { flex: 1; overflow-y: auto; padding: 16px; padding-bottom: 120px; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Voice button */
+  .voice-area { display: flex; flex-direction: column; align-items: center; padding: 24px 0 20px; }
+  .voice-btn {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: var(--primary);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 24px rgba(26,107,90,0.35);
+    transition: all 0.2s;
+    position: relative;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .voice-btn:active { transform: scale(0.94); }
+  .voice-btn.listening {
+    background: var(--danger);
+    box-shadow: 0 0 0 0 rgba(224,92,92,0.5);
+    animation: pulse 1.2s infinite;
+  }
+  .voice-btn svg { width: 38px; height: 38px; fill: white; }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(224,92,92,0.5); }
+    70% { box-shadow: 0 0 0 20px rgba(224,92,92,0); }
+    100% { box-shadow: 0 0 0 0 rgba(224,92,92,0); }
+  }
+  .voice-hint { margin-top: 14px; font-size: 0.82rem; color: var(--text-muted); text-align: center; max-width: 260px; line-height: 1.5; }
+  .voice-hint strong { color: var(--text); }
+
+  /* Transcript box */
+  .transcript-box {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    margin: 4px 0 16px;
+    min-height: 52px;
+    font-size: 0.9rem;
+    color: var(--text);
+    font-style: italic;
+    display: none;
+    position: relative;
+  }
+  .transcript-box.visible { display: block; }
+  .transcript-box .tr-label {
+    font-size: 0.68rem;
+    font-style: normal;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+
+  /* Processing */
+  .processing-chip {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    background: var(--primary-light);
+    color: var(--primary);
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    margin: 0 auto 16px;
+    width: fit-content;
+  }
+  .processing-chip.visible { display: flex; }
+  .spinner {
+    width: 14px; height: 14px;
+    border: 2px solid var(--primary);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Manual form */
+  .manual-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow);
+    margin-top: 8px;
+  }
+  .manual-card h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 14px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-row { display: flex; gap: 10px; margin-bottom: 10px; }
+  .form-group { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+  label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
+  input, select {
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    font-size: 0.9rem;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+  input:focus, select:focus { border-color: var(--primary); background: white; }
+  .add-btn {
+    width: 100%;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 13px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    margin-top: 6px;
+    transition: background 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .add-btn:active { background: #145546; }
+
+  /* Category chips */
+  .cat-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .cat-chip {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+    transition: all 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Expense list */
+  .section-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    margin-top: 4px;
+  }
+  .expense-list { display: flex; flex-direction: column; gap: 8px; }
+  .expense-item {
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 1px 6px rgba(26,107,90,0.07);
+    animation: fadeIn 0.3s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .exp-icon { font-size: 1.4rem; width: 36px; text-align: center; flex-shrink: 0; }
+  .exp-info { flex: 1; min-width: 0; }
+  .exp-desc { font-size: 0.88rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .exp-meta { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+  .exp-amount {
+    font-size: 0.95rem;
+    font-weight: 700;
+    font-family: 'DM Mono', monospace;
+    color: var(--primary);
+    flex-shrink: 0;
+  }
+  .exp-delete {
+    background: none;
+    border: none;
+    color: #ccc;
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 4px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .exp-delete:active { color: var(--danger); }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+  }
+  .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+  .empty-state p { font-size: 0.88rem; line-height: 1.6; }
+
+  /* Stats tab */
+  .stats-grid { display: flex; flex-direction: column; gap: 12px; }
+  .stat-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: var(--shadow);
+  }
+  .stat-cat-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .stat-cat-icon { font-size: 1.3rem; }
+  .stat-cat-name { font-weight: 700; font-size: 0.95rem; flex: 1; }
+  .stat-cat-total { font-family: 'DM Mono', monospace; font-weight: 700; font-size: 1rem; color: var(--primary); }
+  .stat-bar-bg { height: 6px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+  .stat-bar { height: 100%; border-radius: 4px; background: var(--primary); transition: width 0.5s ease; }
+  .stat-count { font-size: 0.72rem; color: var(--text-muted); margin-top: 6px; }
+
+  .stats-summary {
+    background: var(--primary);
+    color: white;
+    border-radius: var(--radius);
+    padding: 18px;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-around;
+    text-align: center;
+  }
+  .sum-val { font-size: 1.3rem; font-weight: 700; font-family: 'DM Mono', monospace; }
+  .sum-label { font-size: 0.68rem; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--text);
+    color: white;
+    border-radius: 20px;
+    padding: 10px 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    z-index: 1000;
+    transition: transform 0.3s ease;
+    white-space: nowrap;
+    max-width: calc(100vw - 40px);
+    text-align: center;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.success { background: var(--primary); }
+  .toast.error { background: var(--danger); }
+
+  /* Floating clear button */
+  .danger-btn {
+    width: 100%;
+    background: none;
+    border: 1.5px solid var(--danger);
+    color: var(--danger);
+    border-radius: var(--radius-sm);
+    padding: 11px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    margin-top: 20px;
+    -webkit-tap-highlight-color: transparent;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>🏖️ Vacances Budget</h1>
+    <p id="tripName">Mes dépenses de voyage</p>
+  </div>
+  <div class="total-badge">
+    <div class="amount" id="totalAmount">0 €</div>
+    <div class="label">Total</div>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('saisie')">🎙️ Saisie</button>
+  <button class="tab" onclick="switchTab('liste')">📋 Liste</button>
+  <button class="tab" onclick="switchTab('stats')">📊 Stats</button>
+</div>
+
+<main>
+
+  <!-- TAB: SAISIE -->
+  <div id="tab-saisie" class="tab-content active">
+
+    <div class="voice-area">
+      <button class="voice-btn" id="voiceBtn" onclick="toggleVoice()">
+        <svg viewBox="0 0 24 24"><path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm-1 17.93V22h2v-3.07A8 8 0 0 0 20 11h-2a6 6 0 0 1-12 0H4a8 8 0 0 0 7 7.93z"/></svg>
+      </button>
+      <p class="voice-hint" id="voiceHint">Appuyez et parlez.<br><strong>Ex : "30 euros d'essence à Total"</strong></p>
+    </div>
+
+    <div class="transcript-box" id="transcriptBox">
+      <div class="tr-label">Ce que j'ai entendu</div>
+      <div id="transcriptText"></div>
+    </div>
+
+    <div class="processing-chip" id="processingChip">
+      <div class="spinner"></div>
+      Analyse en cours…
+    </div>
+
+    <!-- Manual entry -->
+    <div class="manual-card">
+      <h3>✏️ Saisie manuelle</h3>
+      <div class="form-row">
+        <div class="form-group" style="flex:2">
+          <label>Description</label>
+          <input type="text" id="manualDesc" placeholder="Ex : Restaurant midi" />
+        </div>
+        <div class="form-group" style="flex:1">
+          <label>Montant (€)</label>
+          <input type="number" id="manualAmount" placeholder="0" min="0" step="0.01" />
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Catégorie</label>
+        <select id="manualCat">
+          <option value="">-- Choisir --</option>
+        </select>
+      </div>
+      <button class="add-btn" onclick="addManualExpense()">+ Ajouter</button>
+    </div>
+
+  </div>
+
+  <!-- TAB: LISTE -->
+  <div id="tab-liste" class="tab-content">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="filterChips"></div>
+    <div class="section-title" id="listTitle">Toutes les dépenses</div>
+    <div class="expense-list" id="expenseList"></div>
+    <div class="empty-state" id="emptyState" style="display:none">
+      <div class="icon">🎒</div>
+      <p>Aucune dépense encore.<br>Utilisez le micro ou la saisie manuelle !</p>
+    </div>
+    <button class="danger-btn" onclick="clearAll()">🗑️ Effacer toutes les dépenses</button>
+  </div>
+
+  <!-- TAB: STATS -->
+  <div id="tab-stats" class="tab-content">
+    <div class="stats-summary" id="statsSummary">
+      <div><div class="sum-val" id="statsTotal">0 €</div><div class="sum-label">Total</div></div>
+      <div><div class="sum-val" id="statsCount">0</div><div class="sum-label">Dépenses</div></div>
+      <div><div class="sum-val" id="statsMoy">0 €</div><div class="sum-label">Moyenne</div></div>
+    </div>
+    <div class="stats-grid" id="statsGrid"></div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// CATEGORIES
+// ============================================================
+const CATEGORIES = [
+  { key: 'carburant',    label: 'Carburant',    icon: '⛽', color: '#e07b54', bg: '#fef0e8',
+    keywords: ['essence','carburant','gasoil','diesel','station','total','bp','shell','supermarché','e10','sp95','sp98','sans plomb','pétrole'] },
+  { key: 'peage',        label: 'Péage',        icon: '🛣️', color: '#7b68ee', bg: '#f0eeff',
+    keywords: ['péage','autoroute','vinci','sanef','escota','toll'] },
+  { key: 'restaurant',   label: 'Restaurant',   icon: '🍽️', color: '#e05c8a', bg: '#fdeef4',
+    keywords: ['restaurant','resto','dîner','déjeuner','déj','pizza','burger','repas','café','brasserie','bistrot','sushi','crêpe','snack','fast food','mcdo','kebab','bar','terrasse','manger','midi','soir'] },
+  { key: 'hebergement',  label: 'Hébergement',  icon: '🏠', color: '#5c8ae0', bg: '#eef3fd',
+    keywords: ['airbnb','hôtel','hotel','chambre','nuit','logement','gîte','camping','auberge','location','appartement','séjour','booking'] },
+  { key: 'culture',      label: 'Culture',      icon: '🎭', color: '#e0a020', bg: '#fef8e8',
+    keywords: ['musée','château','monument','visite','entrée','expo','concert','spectacle','zoo','parc','attraction','aquarium','billet','ticket','cinéma','galerie','tour'] },
+  { key: 'courses',      label: 'Courses',      icon: '🛒', color: '#20b2aa', bg: '#e8faf9',
+    keywords: ['supermarché','courses','carrefour','leclerc','lidl','aldi','intermarché','monoprix','picard','alimentation','marché','épicerie','provisions','nourriture'] },
+  { key: 'transport',    label: 'Transport',    icon: '🚌', color: '#6b8c82', bg: '#eef4f2',
+    keywords: ['train','bus','metro','tram','taxi','uber','blablacar','avion','ferry','bateau','billet','transport','sncf','tgv','ouigo','vol','aéroport','gare','navette','vélo','scooter','location voiture'] },
+  { key: 'shopping',     label: 'Shopping',     icon: '🛍️', color: '#b85cb8', bg: '#f8eef8',
+    keywords: ['souvenir','cadeau','boutique','magasin','achat','vêtement','chaussure','pharmacie','librairie','shopping','galeries','outlet','marché artisanal'] },
+  { key: 'loisirs',      label: 'Loisirs',      icon: '🎡', color: '#f4a259', bg: '#fef4e8',
+    keywords: ['plage','piscine','spa','massage','golf','randonnée','vélo','surf','ski','sport','activité','loisir','bowling','laser','karting','équitation','plongée','canyoning'] },
+  { key: 'sante',        label: 'Santé',        icon: '💊', color: '#5cb85c', bg: '#edfaed',
+    keywords: ['pharmacie','médecin','dentiste','urgence','médicament','crème solaire','moustique','santé'] },
+  { key: 'autre',        label: 'Autre',        icon: '📦', color: '#888', bg: '#f5f5f5',
+    keywords: [] },
+];
+
+// ============================================================
+// STATE
+// ============================================================
+let expenses = JSON.parse(localStorage.getItem('vacances_expenses') || '[]');
+let filterCat = null;
+let recognition = null;
+let isListening = false;
+
+// ============================================================
+// INIT
+// ============================================================
+function init() {
+  populateCatSelect();
+  renderFilterChips();
+  renderList();
+  renderStats();
+  updateTotal();
+}
+
+function populateCatSelect() {
+  const sel = document.getElementById('manualCat');
+  CATEGORIES.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.key;
+    opt.textContent = c.icon + ' ' + c.label;
+    sel.appendChild(opt);
+  });
+}
+
+function renderFilterChips() {
+  const container = document.getElementById('filterChips');
+  container.innerHTML = '';
+  const all = document.createElement('button');
+  all.className = 'cat-chip';
+  all.textContent = 'Tout';
+  all.style.background = filterCat === null ? '#1a6b5a' : '#e8f5f1';
+  all.style.color = filterCat === null ? 'white' : '#1a6b5a';
+  all.style.borderColor = '#1a6b5a';
+  all.onclick = () => { filterCat = null; renderFilterChips(); renderList(); };
+  container.appendChild(all);
+
+  const activeCats = [...new Set(expenses.map(e => e.category))];
+  activeCats.forEach(key => {
+    const cat = getCat(key);
+    const chip = document.createElement('button');
+    chip.className = 'cat-chip';
+    chip.textContent = cat.icon + ' ' + cat.label;
+    chip.style.background = filterCat === key ? cat.color : cat.bg;
+    chip.style.color = filterCat === key ? 'white' : cat.color;
+    chip.style.borderColor = cat.color;
+    chip.onclick = () => { filterCat = key; renderFilterChips(); renderList(); };
+    container.appendChild(chip);
+  });
+}
+
+// ============================================================
+// CATEGORIZATION (keywords first, then AI fallback)
+// ============================================================
+function categorizeLocal(text) {
+  const t = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  let best = null, bestScore = 0;
+  for (const cat of CATEGORIES) {
+    if (cat.key === 'autre') continue;
+    for (const kw of cat.keywords) {
+      const k = kw.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (t.includes(k)) {
+        if (kw.length > bestScore) { best = cat.key; bestScore = kw.length; }
+      }
+    }
+  }
+  return best || null;
+}
+
+async function categorizeWithAI(text) {
+  const catList = CATEGORIES.map(c => `${c.key}: ${c.label} (mots clés: ${c.keywords.slice(0,4).join(', ')})`).join('\n');
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 200,
+        messages: [{
+          role: 'user',
+          content: `Tu es un assistant de catégorisation de dépenses de vacances. Analyse ce texte et retourne UNIQUEMENT un objet JSON avec les champs: category (clé parmi la liste), amount (nombre en euros, 0 si pas trouvé), description (courte description propre en français, max 40 chars).
+
+Texte: "${text}"
+
+Catégories disponibles:
+${catList}
+
+Réponds UNIQUEMENT avec du JSON valide, sans markdown, sans explication. Exemple: {"category":"restaurant","amount":25.50,"description":"Déjeuner au restaurant"}`
+        }]
+      })
+    });
+    const data = await res.json();
+    const content = data.content?.[0]?.text || '';
+    return JSON.parse(content.trim());
+  } catch(e) {
+    return null;
+  }
+}
+
+function extractAmount(text) {
+  const matches = text.match(/(\d+[\.,]?\d*)\s*(?:euros?|€|eur)?/i);
+  if (matches) return parseFloat(matches[1].replace(',', '.'));
+  return 0;
+}
+
+// ============================================================
+// VOICE
+// ============================================================
+function toggleVoice() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    showToast('⚠️ Micro non supporté sur ce navigateur. Utilisez Chrome.', 'error');
+    return;
+  }
+  if (isListening) { stopListening(); return; }
+  startListening();
+}
+
+function startListening() {
+  const SRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SRec();
+  recognition.lang = 'fr-FR';
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+
+  recognition.onstart = () => {
+    isListening = true;
+    document.getElementById('voiceBtn').classList.add('listening');
+    document.getElementById('voiceHint').innerHTML = '<strong>🔴 Parlez maintenant…</strong><br>Appuyez à nouveau pour arrêter';
+  };
+
+  recognition.onresult = (e) => {
+    let transcript = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      transcript += e.results[i][0].transcript;
+    }
+    const box = document.getElementById('transcriptBox');
+    box.classList.add('visible');
+    document.getElementById('transcriptText').textContent = transcript;
+
+    if (e.results[e.results.length - 1].isFinal) {
+      stopListening();
+      processTranscript(transcript);
+    }
+  };
+
+  recognition.onerror = (e) => {
+    stopListening();
+    if (e.error === 'not-allowed') showToast('Microphone refusé. Autorisez-le dans Chrome.', 'error');
+    else showToast('Erreur micro : ' + e.error, 'error');
+  };
+
+  recognition.onend = () => { if (isListening) stopListening(); };
+
+  recognition.start();
+}
+
+function stopListening() {
+  isListening = false;
+  document.getElementById('voiceBtn').classList.remove('listening');
+  document.getElementById('voiceHint').innerHTML = 'Appuyez et parlez.<br><strong>Ex : "30 euros d\'essence à Total"</strong>';
+  try { recognition?.stop(); } catch(e) {}
+}
+
+async function processTranscript(text) {
+  const chip = document.getElementById('processingChip');
+  chip.classList.add('visible');
+
+  try {
+    // First try local
+    const localCat = categorizeLocal(text);
+    const localAmount = extractAmount(text);
+
+    // Try AI for better results
+    const ai = await categorizeWithAI(text);
+
+    const category = ai?.category || localCat || 'autre';
+    const amount = ai?.amount || localAmount || 0;
+    const description = ai?.description || text.substring(0, 50);
+
+    addExpense({ description, amount, category, source: 'voice' });
+    showToast('✅ ' + description + ' — ' + formatAmt(amount), 'success');
+  } catch(e) {
+    // fallback
+    const category = categorizeLocal(text) || 'autre';
+    const amount = extractAmount(text);
+    addExpense({ description: text.substring(0,50), amount, category, source: 'voice' });
+    showToast('✅ Dépense ajoutée', 'success');
+  } finally {
+    chip.classList.remove('visible');
+  }
+}
+
+// ============================================================
+// EXPENSES CRUD
+// ============================================================
+function addExpense({ description, amount, category, source = 'manual' }) {
+  const exp = {
+    id: Date.now(),
+    description: description || 'Dépense',
+    amount: parseFloat(amount) || 0,
+    category: category || 'autre',
+    date: new Date().toISOString(),
+    source,
+  };
+  expenses.unshift(exp);
+  save();
+  renderList();
+  renderStats();
+  updateTotal();
+  renderFilterChips();
+}
+
+function deleteExpense(id) {
+  expenses = expenses.filter(e => e.id !== id);
+  save();
+  renderList();
+  renderStats();
+  updateTotal();
+  renderFilterChips();
+  showToast('Dépense supprimée');
+}
+
+function clearAll() {
+  if (!confirm('Effacer toutes les dépenses ?')) return;
+  expenses = [];
+  save();
+  filterCat = null;
+  renderList();
+  renderStats();
+  updateTotal();
+  renderFilterChips();
+  showToast('Toutes les dépenses effacées');
+}
+
+function addManualExpense() {
+  const desc = document.getElementById('manualDesc').value.trim();
+  const amount = parseFloat(document.getElementById('manualAmount').value) || 0;
+  const category = document.getElementById('manualCat').value || 'autre';
+
+  if (!desc) { showToast('Entrez une description', 'error'); return; }
+  if (!amount) { showToast('Entrez un montant', 'error'); return; }
+
+  addExpense({ description: desc, amount, category });
+  document.getElementById('manualDesc').value = '';
+  document.getElementById('manualAmount').value = '';
+  document.getElementById('manualCat').value = '';
+  showToast('✅ Dépense ajoutée', 'success');
+}
+
+function save() {
+  localStorage.setItem('vacances_expenses', JSON.stringify(expenses));
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function getCat(key) {
+  return CATEGORIES.find(c => c.key === key) || CATEGORIES.find(c => c.key === 'autre');
+}
+
+function formatAmt(v) {
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 }).format(v);
+}
+
+function formatDate(iso) {
+  return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+function renderList() {
+  const list = document.getElementById('expenseList');
+  const empty = document.getElementById('emptyState');
+  const title = document.getElementById('listTitle');
+
+  const filtered = filterCat ? expenses.filter(e => e.category === filterCat) : expenses;
+
+  if (filterCat) {
+    const cat = getCat(filterCat);
+    title.textContent = cat.icon + ' ' + cat.label;
+  } else {
+    title.textContent = 'Toutes les dépenses (' + expenses.length + ')';
+  }
+
+  if (filtered.length === 0) {
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  list.innerHTML = filtered.map(e => {
+    const cat = getCat(e.category);
+    return `
+      <div class="expense-item">
+        <div class="exp-icon">${cat.icon}</div>
+        <div class="exp-info">
+          <div class="exp-desc">${e.description}</div>
+          <div class="exp-meta">${cat.label} · ${formatDate(e.date)}${e.source === 'voice' ? ' 🎙️' : ''}</div>
+        </div>
+        <div class="exp-amount">${formatAmt(e.amount)}</div>
+        <button class="exp-delete" onclick="deleteExpense(${e.id})">✕</button>
+      </div>`;
+  }).join('');
+}
+
+function updateTotal() {
+  const total = expenses.reduce((s, e) => s + e.amount, 0);
+  document.getElementById('totalAmount').textContent = formatAmt(total);
+}
+
+function renderStats() {
+  const total = expenses.reduce((s, e) => s + e.amount, 0);
+  document.getElementById('statsTotal').textContent = formatAmt(total);
+  document.getElementById('statsCount').textContent = expenses.length;
+  document.getElementById('statsMoy').textContent = expenses.length ? formatAmt(total / expenses.length) : '0 €';
+
+  const bycat = {};
+  expenses.forEach(e => {
+    if (!bycat[e.category]) bycat[e.category] = { total: 0, count: 0 };
+    bycat[e.category].total += e.amount;
+    bycat[e.category].count++;
+  });
+
+  const sorted = Object.entries(bycat).sort((a,b) => b[1].total - a[1].total);
+  const maxVal = sorted[0]?.[1].total || 1;
+
+  const grid = document.getElementById('statsGrid');
+  if (sorted.length === 0) {
+    grid.innerHTML = '<div class="empty-state"><div class="icon">📊</div><p>Ajoutez des dépenses pour voir les statistiques</p></div>';
+    return;
+  }
+
+  grid.innerHTML = sorted.map(([key, data]) => {
+    const cat = getCat(key);
+    const pct = Math.round((data.total / maxVal) * 100);
+    return `
+      <div class="stat-card">
+        <div class="stat-cat-header">
+          <div class="stat-cat-icon">${cat.icon}</div>
+          <div class="stat-cat-name">${cat.label}</div>
+          <div class="stat-cat-total">${formatAmt(data.total)}</div>
+        </div>
+        <div class="stat-bar-bg"><div class="stat-bar" style="width:${pct}%;background:${cat.color}"></div></div>
+        <div class="stat-count">${data.count} dépense${data.count > 1 ? 's' : ''} · ${Math.round(data.total/total*100)}% du total</div>
+      </div>`;
+  }).join('');
+}
+
+// ============================================================
+// UI HELPERS
+// ============================================================
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.querySelectorAll('.tab')[['saisie','liste','stats'].indexOf(tab)].classList.add('active');
+  if (tab === 'stats') renderStats();
+  if (tab === 'liste') { renderFilterChips(); renderList(); }
+}
+
+let toastTimer;
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type;
+  setTimeout(() => t.classList.add('show'), 10);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ============================================================
+// START
+// ============================================================
+init();
+</script>
+</body>
+</html>
